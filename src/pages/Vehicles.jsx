@@ -4,6 +4,8 @@ import { useVehicles } from "../hooks/useVehicles";
 import { deleteVehicle } from "../utils/vehicleService";
 import { VehicleModal } from "../components/VehicleModal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useDrivers } from "../hooks/useDrivers";
+import { useNavigate } from "react-router-dom";
 
 export function Vehicles() {
   const { vehicles, loading } = useVehicles();
@@ -13,6 +15,17 @@ export function Vehicles() {
   const [vehicleToEdit, setVehicleToEdit] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  const { drivers } = useDrivers();
+  const navigate = useNavigate();
+
+  const driverByVehicleId = useMemo(() => {
+    const map = {};
+    drivers.forEach((d) => {
+      if (d.vehicleId) map[d.vehicleId] = d;
+    });
+    return map;
+  }, [drivers]);
 
   const vehicleTypes = useMemo(() => {
     const types = new Set(vehicles.map((v) => v.type).filter(Boolean));
@@ -65,18 +78,6 @@ export function Vehicles() {
       }`}
     >
       {ownerType === "company" ? "Company Owned" : "Driver Owned"}
-    </span>
-  );
-
-  const StatusBadge = ({ status }) => (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${
-        status === "active"
-          ? "bg-green-100 text-green-800"
-          : "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {status}
     </span>
   );
 
@@ -149,23 +150,44 @@ export function Vehicles() {
                 </div>
                 <div className="flex justify-between items-center mt-3 text-sm">
                   <OwnerBadge ownerType={vehicle.ownerType} />
-                  <StatusBadge status={vehicle.status} />
+                  <p className="text-sm text-gray-600">
+                    {vehicle.color ? `${vehicle.color}` : ""}
+                  </p>
                 </div>
                 <div className="flex gap-2 mt-4">
-                  {vehicle.ownerType === "company" && (
+                  {vehicle.ownerType === "driver" ? (
                     <button
-                      onClick={() => handleEditClick(vehicle)}
-                      className="flex-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                      onClick={() =>
+                        navigate("/drivers", {
+                          state: {
+                            highlightDriverId:
+                              driverByVehicleId[vehicle.id]?.id,
+                          },
+                        })
+                      }
+                      className="w-full mt-4 px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
                     >
-                      Edit
+                      Managed via Driver
+                      {driverByVehicleId[vehicle.id]
+                        ? `: ${driverByVehicleId[vehicle.id].fullName}`
+                        : ""}
                     </button>
+                  ) : (
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => handleEditClick(vehicle)}
+                        className="flex-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(vehicle)}
+                        className="flex-1 px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
-                  <button
-                    onClick={() => setDeleteConfirm(vehicle)}
-                    className="flex-1 px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
-                  >
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
@@ -189,7 +211,7 @@ export function Vehicles() {
                     Owner
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Status
+                    Colour
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Actions
@@ -217,25 +239,44 @@ export function Vehicles() {
                       <OwnerBadge ownerType={vehicle.ownerType} />
                     </td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={vehicle.status} />
+                      <p className="text-sm text-gray-600">
+                        {vehicle.color ? `${vehicle.color}` : ""}
+                      </p>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        {vehicle.ownerType === "company" && (
+                      {vehicle.ownerType === "driver" ? (
+                        <button
+                          onClick={() =>
+                            navigate("/drivers", {
+                              state: {
+                                highlightDriverId:
+                                  driverByVehicleId[vehicle.id]?.id,
+                              },
+                            })
+                          }
+                          className="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                        >
+                          Managed via Driver
+                          {driverByVehicleId[vehicle.id]
+                            ? `: ${driverByVehicleId[vehicle.id].fullName}`
+                            : ""}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditClick(vehicle)}
                             className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
                           >
                             Edit
                           </button>
-                        )}
-                        <button
-                          onClick={() => setDeleteConfirm(vehicle)}
-                          className="px-3 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => setDeleteConfirm(vehicle)}
+                            className="px-3 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -261,7 +302,11 @@ export function Vehicles() {
       <ConfirmDialog
         isOpen={!!deleteConfirm}
         title="Delete Vehicle"
-        message={`Delete ${deleteConfirm?.make} ${deleteConfirm?.model} (${deleteConfirm?.plateNumber})?`}
+        message={
+          driverByVehicleId[deleteConfirm?.id]
+            ? `${deleteConfirm?.make} ${deleteConfirm?.model} (${deleteConfirm?.plateNumber}) is currently assigned to ${driverByVehicleId[deleteConfirm?.id].fullName}. Deleting it will unassign them. Continue?`
+            : `Delete ${deleteConfirm?.make} ${deleteConfirm?.model} (${deleteConfirm?.plateNumber})?`
+        }
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous

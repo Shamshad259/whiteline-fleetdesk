@@ -5,7 +5,9 @@ import { useAuth } from "./hooks/AuthContext";
 import { Login } from "./pages/Login";
 import { Layout } from "./components/Layout";
 import { Vehicles } from "./pages/Vehicles";
+import { FleetManagement } from "./pages/FleetManagement";
 import { Drivers } from "./pages/Drivers";
+import { Rates } from "./pages/Rates";
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
@@ -31,8 +33,9 @@ function AppRoutes() {
         <Route index element={<Placeholder title="Dashboard" />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="vehicles" element={<Vehicles />} />
+        <Route path="fleet-management" element={<FleetManagement />} />
         <Route path="customers" element={<Placeholder title="Customers" />} />
-        <Route path="rates" element={<Placeholder title="Rate Management" />} />
+        <Route path="rates" element={<Rates />} />
         <Route path="trips" element={<Placeholder title="Trips" />} />
       </Route>
     </Routes>

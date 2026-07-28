@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { useDrivers } from "../hooks/useDrivers";
 import { useVehicles } from "../hooks/useVehicles";
 import { deleteDriver } from "../utils/driverService";
+import { deleteVehicle } from "../utils/vehicleService";
 import { DriverModal } from "../components/DriverModal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
@@ -16,6 +17,8 @@ export function Drivers() {
   const [driverToEdit, setDriverToEdit] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState(null);
+  const [deletingVehicle, setDeletingVehicle] = useState(false);
 
   const vehicleMap = useMemo(() => {
     const map = {};
@@ -73,6 +76,19 @@ export function Drivers() {
     }
   };
 
+  const handleConfirmDeleteVehicle = async () => {
+    setDeletingVehicle(true);
+    try {
+      await deleteVehicle(vehicleDeleteConfirm.id);
+      toast.success("Vehicle deleted");
+      setVehicleDeleteConfirm(null);
+    } catch (err) {
+      toast.error(err.message || "Error deleting vehicle");
+    } finally {
+      setDeletingVehicle(false);
+    }
+  };
+
   const DriverTypeBadge = ({ type }) => (
     <span
       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -82,18 +98,6 @@ export function Drivers() {
       }`}
     >
       {type === "in-house" ? "In-House" : "Freelance"}
-    </span>
-  );
-
-  const StatusBadge = ({ status }) => (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${
-        status === "active"
-          ? "bg-green-100 text-green-800"
-          : "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {status}
     </span>
   );
 
@@ -188,9 +192,18 @@ export function Drivers() {
                   </div>
                   <DriverTypeBadge type={driver.driverType} />
                 </div>
-                <div className="mb-2">{renderVehicleInfo(driver)}</div>
-                <div className="flex justify-between items-center mt-3">
-                  <StatusBadge status={driver.status} />
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  {renderVehicleInfo(driver)}
+                  {vehicleMap[driver.vehicleId]?.ownerType === "driver" && (
+                    <button
+                      onClick={() =>
+                        setVehicleDeleteConfirm(vehicleMap[driver.vehicleId])
+                      }
+                      className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 whitespace-nowrap"
+                    >
+                      Delete Vehicle
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-4">
                   <button
@@ -228,9 +241,6 @@ export function Drivers() {
                     Vehicle
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Actions
                   </th>
                 </tr>
@@ -248,9 +258,23 @@ export function Drivers() {
                     <td className="py-3 px-4">
                       <DriverTypeBadge type={driver.driverType} />
                     </td>
-                    <td className="py-3 px-4">{renderVehicleInfo(driver)}</td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={driver.status} />
+                      <div className="flex items-center gap-2">
+                        {renderVehicleInfo(driver)}
+                        {vehicleMap[driver.vehicleId]?.ownerType ===
+                          "driver" && (
+                          <button
+                            onClick={() =>
+                              setVehicleDeleteConfirm(
+                                vehicleMap[driver.vehicleId],
+                              )
+                            }
+                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 whitespace-nowrap"
+                          >
+                            Delete Vehicle
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -292,13 +316,29 @@ export function Drivers() {
       <ConfirmDialog
         isOpen={!!deleteConfirm}
         title="Delete Driver"
-        message={`Delete ${deleteConfirm?.fullName}?`}
+        message={
+          vehicleMap[deleteConfirm?.vehicleId]
+            ? `${deleteConfirm?.fullName} is currently assigned ${vehicleMap[deleteConfirm.vehicleId].ownerType === "driver" ? "their own vehicle" : "a company vehicle"} (${vehicleMap[deleteConfirm.vehicleId].plateNumber}). ${vehicleMap[deleteConfirm.vehicleId].ownerType === "driver" ? "That vehicle will also be deleted." : "It will become unassigned."} Continue?`
+            : `Delete ${deleteConfirm?.fullName}?`
+        }
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous
         loading={deleting}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirm(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!vehicleDeleteConfirm}
+        title="Delete Vehicle"
+        message={`Delete ${vehicleDeleteConfirm?.make} ${vehicleDeleteConfirm?.model} (${vehicleDeleteConfirm?.plateNumber})? This driver's record will stay, but they'll be unassigned from this vehicle.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous
+        loading={deletingVehicle}
+        onConfirm={handleConfirmDeleteVehicle}
+        onCancel={() => setVehicleDeleteConfirm(null)}
       />
     </div>
   );

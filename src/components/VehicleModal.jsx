@@ -1,30 +1,61 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { addVehicle, updateVehicle } from "../utils/vehicleService";
-
-const VEHICLE_TYPES = ["Sedan", "SUV", "Van", "Luxury", "Bus"];
+import { useVehicleClasses } from "../hooks/useVehicleClasses";
+import { useVehicleModels } from "../hooks/useVehicleModels";
+import { VehicleClassModal } from "./VehicleClassModal";
+import { VehicleModelModal } from "./VehicleModelModal";
+import { ModalShell } from "./ModalShell";
 
 export function VehicleModal({ isOpen, onClose, vehicleToEdit, onSuccess }) {
+  const { vehicleClasses } = useVehicleClasses();
+  const { vehicleModels } = useVehicleModels();
+
+  const initialModel = vehicleModels.find(
+    (m) => m.id === vehicleToEdit?.modelId,
+  );
+
   const [form, setForm] = useState(() => ({
-    type: vehicleToEdit?.type || "Sedan",
-    make: vehicleToEdit?.make || "",
-    model: vehicleToEdit?.model || "",
+    classId: initialModel?.classId || "",
+    modelId: vehicleToEdit?.modelId || "",
     plateNumber: vehicleToEdit?.plateNumber || "",
-    status: vehicleToEdit?.status || "active",
+    year: vehicleToEdit?.year || "",
+    color: vehicleToEdit?.color || "",
   }));
   const [saving, setSaving] = useState(false);
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
+  const modelsForClass = vehicleModels.filter(
+    (m) => m.classId === form.classId,
+  );
+
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "classId") {
+      setForm({ ...form, classId: value, modelId: "" });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.modelId) {
+      toast.error("Please select a vehicle model");
+      return;
+    }
     setSaving(true);
     try {
-      const payload = { ...form, ownerType: "company" };
+      const payload = {
+        modelId: form.modelId,
+        plateNumber: form.plateNumber,
+        year: form.year ? Number(form.year) : null,
+        color: form.color,
+        ownerType: "company",
+      };
       if (vehicleToEdit) {
         await updateVehicle(vehicleToEdit.id, payload);
         toast.success("Vehicle updated");
@@ -42,105 +73,162 @@ export function VehicleModal({ isOpen, onClose, vehicleToEdit, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-bold mb-4">
-          {vehicleToEdit ? "Edit Vehicle" : "Add Vehicle"}
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vehicle Type
+    <ModalShell
+      title={vehicleToEdit ? "Edit Vehicle" : "Add Vehicle"}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Vehicle Class <span className="text-red-500">*</span>
             </label>
-            <select
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            <button
+              type="button"
+              onClick={() => setIsClassModalOpen(true)}
+              className="text-xs text-blue-600 hover:underline"
             >
-              {VEHICLE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              + Add New Class
+            </button>
           </div>
+          <select
+            name="classId"
+            value={form.classId}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="">Select class...</option>
+            {vehicleClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Make <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="make"
-                value={form.make}
-                onChange={handleChange}
-                placeholder="e.g. GMC"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Model <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="model"
-                value={form.model}
-                onChange={handleChange}
-                placeholder="e.g. Yukon"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-          </div>
-
+        {form.classId && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Plate Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="plateNumber"
-              value={form.plateNumber}
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Vehicle Model <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsModelModalOpen(true)}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                + Add New Model
+              </button>
+            </div>
+            <select
+              name="modelId"
+              value={form.modelId}
               onChange={handleChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
+            >
+              <option value="">Select model...</option>
+              {modelsForClass.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            {modelsForClass.length === 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                No models under this class yet — add one above.
+              </p>
+            )}
           </div>
+        )}
 
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
+              Year
             </label>
-            <select
-              name="status"
-              value={form.status}
+            <input
+              type="number"
+              name="year"
+              value={form.year}
               onChange={handleChange}
+              placeholder="e.g. 2023"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Color
+            </label>
+            <input
+              name="color"
+              value={form.color}
+              onChange={handleChange}
+              placeholder="e.g. White"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+        </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Plate Number <span className="text-red-500">*</span>
+          </label>
+          <input
+            name="plateNumber"
+            value={form.plateNumber}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          />
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+
+      {isClassModalOpen && (
+        <VehicleClassModal
+          isOpen={isClassModalOpen}
+          onClose={() => setIsClassModalOpen(false)}
+          classToEdit={null}
+          onSuccess={(newClassId) => {
+            if (newClassId) {
+              setForm((f) => ({ ...f, classId: newClassId, modelId: "" }));
+            }
+          }}
+        />
+      )}
+
+      {isModelModalOpen && (
+        <VehicleModelModal
+          isOpen={isModelModalOpen}
+          onClose={() => setIsModelModalOpen(false)}
+          modelToEdit={null}
+          vehicleClasses={vehicleClasses}
+          defaultClassId={form.classId}
+          onSuccess={(newModelId) => {
+            if (newModelId) {
+              setForm((f) => ({ ...f, modelId: newModelId }));
+            }
+          }}
+        />
+      )}
+    </ModalShell>
   );
 }
