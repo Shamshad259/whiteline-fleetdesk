@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useVehicles } from "../hooks/useVehicles";
 import { deleteVehicle } from "../utils/vehicleService";
+import { useVehicleClasses } from "../hooks/useVehicleClasses";
+import { useVehicleModels } from "../hooks/useVehicleModels";
 import { VehicleModal } from "../components/VehicleModal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useDrivers } from "../hooks/useDrivers";
@@ -9,8 +11,11 @@ import { useNavigate } from "react-router-dom";
 
 export function Vehicles() {
   const { vehicles, loading } = useVehicles();
+  const { vehicleClasses } = useVehicleClasses();
+  const { vehicleModels } = useVehicleModels();
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [classFilter, setClassFilter] = useState("all");
+  const [modelFilter, setModelFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [vehicleToEdit, setVehicleToEdit] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -27,24 +32,48 @@ export function Vehicles() {
     return map;
   }, [drivers]);
 
-  const vehicleTypes = useMemo(() => {
-    const types = new Set(vehicles.map((v) => v.type).filter(Boolean));
-    return Array.from(types);
-  }, [vehicles]);
+  const modelById = useMemo(() => {
+    const map = {};
+    vehicleModels.forEach((m) => {
+      map[m.id] = m;
+    });
+    return map;
+  }, [vehicleModels]);
+
+  const classNameById = (id) =>
+    vehicleClasses.find((c) => c.id === id)?.name || "";
+
+  const modelsForFilter = useMemo(() => {
+    if (classFilter === "all") return vehicleModels;
+    return vehicleModels.filter((m) => m.classId === classFilter);
+  }, [vehicleModels, classFilter]);
+
+  const handleClassFilterChange = (e) => {
+    setClassFilter(e.target.value);
+    setModelFilter("all");
+  };
 
   const filteredVehicles = useMemo(() => {
     return vehicles
-      .filter((v) => (typeFilter === "all" ? true : v.type === typeFilter))
+      .filter((v) => {
+        if (classFilter === "all") return true;
+        const model = modelById[v.modelId];
+        return model?.classId === classFilter;
+      })
+      .filter((v) => {
+        if (modelFilter === "all") return true;
+        return v.modelId === modelFilter;
+      })
       .filter((v) => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
+        const model = modelById[v.modelId];
         return (
-          v.make?.toLowerCase().includes(q) ||
-          v.model?.toLowerCase().includes(q) ||
+          model?.name?.toLowerCase().includes(q) ||
           v.plateNumber?.toLowerCase().includes(q)
         );
       });
-  }, [vehicles, typeFilter, searchQuery]);
+  }, [vehicles, modelById, classFilter, modelFilter, searchQuery]);
 
   const handleAddClick = () => {
     setVehicleToEdit(null);
@@ -81,6 +110,23 @@ export function Vehicles() {
     </span>
   );
 
+  const renderModelInfo = (vehicle) => {
+    const model = modelById[vehicle.modelId];
+    if (!model) {
+      return (
+        <span className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+          Unassigned model
+        </span>
+      );
+    }
+    return (
+      <div>
+        <p className="font-bold text-gray-900">{model.name}</p>
+        <p className="text-xs text-gray-500">{classNameById(model.classId)}</p>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -96,20 +142,32 @@ export function Vehicles() {
         <div className="flex flex-col md:flex-row gap-4">
           <input
             type="text"
-            placeholder="Search by make, model, or plate..."
+            placeholder="Search by model or plate..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
           />
           <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            value={classFilter}
+            onChange={handleClassFilterChange}
             className="px-4 py-2 border border-gray-300 rounded-lg"
           >
-            <option value="all">All Types</option>
-            {vehicleTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            <option value="all">All Classes</option>
+            {vehicleClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={modelFilter}
+            onChange={(e) => setModelFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="all">All Models</option>
+            {modelsForFilter.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
               </option>
             ))}
           </select>
@@ -136,22 +194,13 @@ export function Vehicles() {
                 className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      {vehicle.make} {vehicle.model}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {vehicle.plateNumber}
-                    </p>
-                  </div>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                    {vehicle.type}
-                  </span>
+                  {renderModelInfo(vehicle)}
+                  <p className="text-sm text-gray-600">{vehicle.plateNumber}</p>
                 </div>
                 <div className="flex justify-between items-center mt-3 text-sm">
                   <OwnerBadge ownerType={vehicle.ownerType} />
                   <p className="text-sm text-gray-600">
-                    {vehicle.color ? `${vehicle.color}` : ""}
+                    {[vehicle.year, vehicle.color].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <div className="flex gap-2 mt-4">
@@ -199,19 +248,19 @@ export function Vehicles() {
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Make / Model
+                    Model / Class
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Plate Number
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Type
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Owner
+                    Year
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Colour
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Owner
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Actions
@@ -225,23 +274,19 @@ export function Vehicles() {
                     className="border-b border-gray-200 hover:bg-gray-50"
                   >
                     <td className="py-3 px-4 font-medium text-gray-900">
-                      {vehicle.make} {vehicle.model}
+                      {renderModelInfo(vehicle)}
                     </td>
                     <td className="py-3 px-4 text-gray-700">
                       {vehicle.plateNumber}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {vehicle.type}
-                      </span>
+                    <td className="py-3 px-4 text-gray-700">
+                      {vehicle.year || "—"}
+                    </td>
+                    <td className="py-3 px-4 text-gray-700">
+                      {vehicle.color || "—"}
                     </td>
                     <td className="py-3 px-4">
                       <OwnerBadge ownerType={vehicle.ownerType} />
-                    </td>
-                    <td className="py-3 px-4">
-                      <p className="text-sm text-gray-600">
-                        {vehicle.color ? `${vehicle.color}` : ""}
-                      </p>
                     </td>
                     <td className="py-3 px-4">
                       {vehicle.ownerType === "driver" ? (
@@ -304,8 +349,8 @@ export function Vehicles() {
         title="Delete Vehicle"
         message={
           driverByVehicleId[deleteConfirm?.id]
-            ? `${deleteConfirm?.make} ${deleteConfirm?.model} (${deleteConfirm?.plateNumber}) is currently assigned to ${driverByVehicleId[deleteConfirm?.id].fullName}. Deleting it will unassign them. Continue?`
-            : `Delete ${deleteConfirm?.make} ${deleteConfirm?.model} (${deleteConfirm?.plateNumber})?`
+            ? `${modelById[deleteConfirm?.modelId]?.name || "This vehicle"} (${deleteConfirm?.plateNumber}) is currently assigned to ${driverByVehicleId[deleteConfirm?.id].fullName}. Deleting it will unassign them. Continue?`
+            : `Delete ${modelById[deleteConfirm?.modelId]?.name || "this vehicle"} (${deleteConfirm?.plateNumber})?`
         }
         confirmText="Delete"
         cancelText="Cancel"

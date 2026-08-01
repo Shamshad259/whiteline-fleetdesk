@@ -4,10 +4,13 @@ import { AuthProvider } from "./hooks/useAuth";
 import { useAuth } from "./hooks/AuthContext";
 import { Login } from "./pages/Login";
 import { Layout } from "./components/Layout";
+import { DriverTimesheetForm } from "./pages/DriverTimesheetForm";
 import { Vehicles } from "./pages/Vehicles";
 import { FleetManagement } from "./pages/FleetManagement";
 import { Drivers } from "./pages/Drivers";
-import { Rates } from "./pages/Rates";
+import { Timesheets } from "./pages/Timesheets";
+import { Trips } from "./pages/Trips";
+import { Dashboard } from "./pages/Dashboard";
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
@@ -22,6 +25,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/timesheet/:token" element={<DriverTimesheetForm />} />
       <Route
         path="/"
         element={
@@ -30,13 +34,13 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
-        <Route index element={<Placeholder title="Dashboard" />} />
+        <Route index element={<Dashboard />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="vehicles" element={<Vehicles />} />
+        <Route path="timesheets" element={<Timesheets />} />
         <Route path="fleet-management" element={<FleetManagement />} />
         <Route path="customers" element={<Placeholder title="Customers" />} />
-        <Route path="rates" element={<Rates />} />
-        <Route path="trips" element={<Placeholder title="Trips" />} />
+        <Route path="trips" element={<Trips />} />
       </Route>
     </Routes>
   );

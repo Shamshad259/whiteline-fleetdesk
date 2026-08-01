@@ -2,16 +2,22 @@ import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useDrivers } from "../hooks/useDrivers";
 import { useVehicles } from "../hooks/useVehicles";
+import { useVehicleClasses } from "../hooks/useVehicleClasses";
+import { useVehicleModels } from "../hooks/useVehicleModels";
 import { deleteDriver } from "../utils/driverService";
 import { deleteVehicle } from "../utils/vehicleService";
 import { DriverModal } from "../components/DriverModal";
+import { TimesheetLinkModal } from "../components/TimesheetLinkModal";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
 export function Drivers() {
   const { drivers, loading } = useDrivers();
   const { vehicles } = useVehicles();
+  const { vehicleClasses } = useVehicleClasses();
+  const { vehicleModels } = useVehicleModels();
   const [searchQuery, setSearchQuery] = useState("");
-  const [vehicleTypeFilter, setVehicleTypeFilter] = useState("all");
+  const [classFilter, setClassFilter] = useState("all");
+  const [modelFilter, setModelFilter] = useState("all");
   const [driverTypeFilter, setDriverTypeFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [driverToEdit, setDriverToEdit] = useState(null);
@@ -19,6 +25,9 @@ export function Drivers() {
   const [deleting, setDeleting] = useState(false);
   const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState(null);
   const [deletingVehicle, setDeletingVehicle] = useState(false);
+  const [timesheetDriverId, setTimesheetDriverId] = useState(null);
+  const timesheetDriver =
+    drivers.find((d) => d.id === timesheetDriverId) || null;
 
   const vehicleMap = useMemo(() => {
     const map = {};
@@ -28,17 +37,39 @@ export function Drivers() {
     return map;
   }, [vehicles]);
 
-  const vehicleTypes = useMemo(() => {
-    const types = new Set(vehicles.map((v) => v.type).filter(Boolean));
-    return Array.from(types);
-  }, [vehicles]);
+  const modelById = useMemo(() => {
+    const map = {};
+    vehicleModels.forEach((m) => {
+      map[m.id] = m;
+    });
+    return map;
+  }, [vehicleModels]);
+
+  const classNameById = (id) =>
+    vehicleClasses.find((c) => c.id === id)?.name || "";
+
+  const modelsForFilter = useMemo(() => {
+    if (classFilter === "all") return vehicleModels;
+    return vehicleModels.filter((m) => m.classId === classFilter);
+  }, [vehicleModels, classFilter]);
+
+  const handleClassFilterChange = (e) => {
+    setClassFilter(e.target.value);
+    setModelFilter("all");
+  };
 
   const filteredDrivers = useMemo(() => {
     return drivers
       .filter((d) => {
-        if (vehicleTypeFilter === "all") return true;
+        if (classFilter === "all") return true;
         const vehicle = vehicleMap[d.vehicleId];
-        return vehicle?.type === vehicleTypeFilter;
+        const model = modelById[vehicle?.modelId];
+        return model?.classId === classFilter;
+      })
+      .filter((d) => {
+        if (modelFilter === "all") return true;
+        const vehicle = vehicleMap[d.vehicleId];
+        return vehicle?.modelId === modelFilter;
       })
       .filter((d) =>
         driverTypeFilter === "all" ? true : d.driverType === driverTypeFilter,
@@ -51,7 +82,15 @@ export function Drivers() {
           d.phone?.toLowerCase().includes(q)
         );
       });
-  }, [drivers, vehicleMap, vehicleTypeFilter, driverTypeFilter, searchQuery]);
+  }, [
+    drivers,
+    vehicleMap,
+    modelById,
+    classFilter,
+    modelFilter,
+    driverTypeFilter,
+    searchQuery,
+  ]);
 
   const handleAddClick = () => {
     setDriverToEdit(null);
@@ -110,13 +149,14 @@ export function Drivers() {
         </span>
       );
     }
+    const model = modelById[vehicle.modelId];
     return (
       <div>
         <p className="font-medium text-gray-900 text-sm">
-          {vehicle.make} {vehicle.model}
+          {model?.name || "Unknown model"}
         </p>
         <p className="text-xs text-gray-500">
-          {vehicle.plateNumber} · {vehicle.type}
+          {vehicle.plateNumber} · {classNameById(model?.classId)}
         </p>
       </div>
     );
@@ -134,7 +174,7 @@ export function Drivers() {
     <div className="p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Drivers</h1>
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-4 flex-wrap">
           <input
             type="text"
             placeholder="Search by name or phone..."
@@ -143,14 +183,26 @@ export function Drivers() {
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
           />
           <select
-            value={vehicleTypeFilter}
-            onChange={(e) => setVehicleTypeFilter(e.target.value)}
+            value={classFilter}
+            onChange={handleClassFilterChange}
             className="px-4 py-2 border border-gray-300 rounded-lg"
           >
-            <option value="all">All Vehicle Types</option>
-            {vehicleTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            <option value="all">All Classes</option>
+            {vehicleClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={modelFilter}
+            onChange={(e) => setModelFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="all">All Models</option>
+            {modelsForFilter.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
               </option>
             ))}
           </select>
@@ -211,6 +263,12 @@ export function Drivers() {
                     className="flex-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => setTimesheetDriverId(driver.id)}
+                    className="flex-1 px-3 py-1.5 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
+                  >
+                    Timesheet Link
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(driver)}
@@ -285,6 +343,12 @@ export function Drivers() {
                           Edit
                         </button>
                         <button
+                          onClick={() => setTimesheetDriverId(driver.id)}
+                          className="px-3 py-1 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100"
+                        >
+                          Timesheet Link
+                        </button>
+                        <button
                           onClick={() => setDeleteConfirm(driver)}
                           className="px-3 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
                         >
@@ -313,6 +377,15 @@ export function Drivers() {
         />
       )}
 
+      {timesheetDriver && (
+        <TimesheetLinkModal
+          isOpen={!!timesheetDriver}
+          onClose={() => setTimesheetDriverId(null)}
+          driver={timesheetDriver}
+          onSuccess={() => {}}
+        />
+      )}
+
       <ConfirmDialog
         isOpen={!!deleteConfirm}
         title="Delete Driver"
@@ -332,7 +405,7 @@ export function Drivers() {
       <ConfirmDialog
         isOpen={!!vehicleDeleteConfirm}
         title="Delete Vehicle"
-        message={`Delete ${vehicleDeleteConfirm?.make} ${vehicleDeleteConfirm?.model} (${vehicleDeleteConfirm?.plateNumber})? This driver's record will stay, but they'll be unassigned from this vehicle.`}
+        message={`Delete this vehicle (${vehicleDeleteConfirm?.plateNumber})? This driver's record will stay, but they'll be unassigned from this vehicle.`}
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous

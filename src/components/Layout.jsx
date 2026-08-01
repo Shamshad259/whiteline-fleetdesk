@@ -6,9 +6,9 @@ const navItems = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/drivers", label: "Drivers" },
   { to: "/vehicles", label: "Vehicles" },
+  { to: "/timesheets", label: "Timesheets" },
   { to: "/fleet-management", label: "Fleet Management" },
   { to: "/customers", label: "Customers" },
-  { to: "/rates", label: "Rate Management" },
   { to: "/trips", label: "Trips" },
 ];
 

@@ -2,15 +2,20 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { useVehicles } from "../hooks/useVehicles";
 import { useDrivers } from "../hooks/useDrivers";
+import { useVehicleClasses } from "../hooks/useVehicleClasses";
+import { useVehicleModels } from "../hooks/useVehicleModels";
 import { addDriver, updateDriver } from "../utils/driverService";
 import { addVehicle } from "../utils/vehicleService";
+import { VehicleClassModal } from "./VehicleClassModal";
+import { VehicleModelModal } from "./VehicleModelModal";
 import { ModalShell } from "./ModalShell";
-
-const VEHICLE_TYPES = ["Sedan", "SUV", "Van", "Luxury", "Bus"];
 
 export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
   const { vehicles } = useVehicles();
   const { drivers } = useDrivers();
+  const { vehicleClasses } = useVehicleClasses();
+  const { vehicleModels } = useVehicleModels();
+
   const [form, setForm] = useState(() => ({
     fullName: driverToEdit?.fullName || "",
     phone: driverToEdit?.phone || "",
@@ -20,15 +25,21 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
   }));
   const [vehicleMode, setVehicleMode] = useState("existing"); // "existing" or "new"
   const [newVehicle, setNewVehicle] = useState({
-    type: "Sedan",
-    make: "",
-    model: "",
+    classId: "",
+    modelId: "",
     plateNumber: "",
+    year: "",
     color: "",
   });
   const [saving, setSaving] = useState(false);
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
 
   if (!isOpen) return null;
+
+  const modelsForNewVehicleClass = vehicleModels.filter(
+    (m) => m.classId === newVehicle.classId,
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,7 +52,12 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
   };
 
   const handleNewVehicleChange = (e) => {
-    setNewVehicle({ ...newVehicle, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "classId") {
+      setNewVehicle({ ...newVehicle, classId: value, modelId: "" });
+    } else {
+      setNewVehicle({ ...newVehicle, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -52,13 +68,16 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
 
       // If freelance driver + adding a new vehicle, create it first
       if (form.driverType === "freelance" && vehicleMode === "new") {
-        if (!newVehicle.make || !newVehicle.model || !newVehicle.plateNumber) {
-          toast.error("Please fill in the vehicle details");
+        if (!newVehicle.modelId || !newVehicle.plateNumber) {
+          toast.error("Please select a model and enter a plate number");
           setSaving(false);
           return;
         }
         const vehicleDoc = await addVehicle({
-          ...newVehicle,
+          modelId: newVehicle.modelId,
+          plateNumber: newVehicle.plateNumber,
+          year: newVehicle.year ? Number(newVehicle.year) : null,
+          color: newVehicle.color,
           ownerType: "driver",
         });
         vehicleId = vehicleDoc.id;
@@ -151,16 +170,19 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
                       (d) => d.vehicleId === v.id && d.id !== driverToEdit?.id,
                     ),
                 )
-                .map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.make} {v.model} — {v.plateNumber} ({v.type})
-                  </option>
-                ))}
+                .map((v) => {
+                  const model = vehicleModels.find((m) => m.id === v.modelId);
+                  return (
+                    <option key={v.id} value={v.id}>
+                      {model?.name || "Unknown model"} — {v.plateNumber}
+                    </option>
+                  );
+                })}
             </select>
           </div>
         )}
 
-        {/* Freelance: choose existing (their own vehicle already in system) or add new */}
+        {/* Freelance: choose existing (any owner type) or add new */}
         {form.driverType === "freelance" && (
           <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -208,40 +230,88 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
                           d.vehicleId === v.id && d.id !== driverToEdit?.id,
                       ),
                   )
-                  .map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.make} {v.model} — {v.plateNumber} ({v.type}
-                      {v.ownerType === "company" ? " · Company" : " · Own"})
-                    </option>
-                  ))}
+                  .map((v) => {
+                    const model = vehicleModels.find((m) => m.id === v.modelId);
+                    return (
+                      <option key={v.id} value={v.id}>
+                        {model?.name || "Unknown model"} — {v.plateNumber}
+                        {v.ownerType === "company" ? " · Company" : " · Own"}
+                      </option>
+                    );
+                  })}
               </select>
             ) : (
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-gray-600">
+                    Vehicle Class
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsClassModalOpen(true)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    + Add New Class
+                  </button>
+                </div>
                 <select
-                  name="type"
-                  value={newVehicle.type}
+                  name="classId"
+                  value={newVehicle.classId}
                   onChange={handleNewVehicleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  {VEHICLE_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  <option value="">Select class...</option>
+                  {vehicleClasses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
+
+                {newVehicle.classId && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-gray-600">
+                        Vehicle Model
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsModelModalOpen(true)}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        + Add New Model
+                      </button>
+                    </div>
+                    <select
+                      name="modelId"
+                      value={newVehicle.modelId}
+                      onChange={handleNewVehicleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">Select model...</option>
+                      {modelsForNewVehicleClass.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    name="make"
-                    value={newVehicle.make}
+                    type="number"
+                    name="year"
+                    value={newVehicle.year}
                     onChange={handleNewVehicleChange}
-                    placeholder="Make *"
+                    placeholder="Year"
                     className="px-3 py-2 border border-gray-300 rounded-lg"
                   />
                   <input
-                    name="model"
-                    value={newVehicle.model}
+                    name="color"
+                    value={newVehicle.color}
                     onChange={handleNewVehicleChange}
-                    placeholder="Model *"
+                    placeholder="Colour"
                     className="px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -250,13 +320,6 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
                   value={newVehicle.plateNumber}
                   onChange={handleNewVehicleChange}
                   placeholder="Plate Number *"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  name="color"
-                  value={newVehicle.color}
-                  onChange={handleNewVehicleChange}
-                  placeholder="Colour"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
@@ -294,6 +357,38 @@ export function DriverModal({ isOpen, onClose, driverToEdit, onSuccess }) {
           </button>
         </div>
       </form>
+
+      {isClassModalOpen && (
+        <VehicleClassModal
+          isOpen={isClassModalOpen}
+          onClose={() => setIsClassModalOpen(false)}
+          classToEdit={null}
+          onSuccess={(newClassId) => {
+            if (newClassId) {
+              setNewVehicle((v) => ({
+                ...v,
+                classId: newClassId,
+                modelId: "",
+              }));
+            }
+          }}
+        />
+      )}
+
+      {isModelModalOpen && (
+        <VehicleModelModal
+          isOpen={isModelModalOpen}
+          onClose={() => setIsModelModalOpen(false)}
+          modelToEdit={null}
+          vehicleClasses={vehicleClasses}
+          defaultClassId={newVehicle.classId}
+          onSuccess={(newModelId) => {
+            if (newModelId) {
+              setNewVehicle((v) => ({ ...v, modelId: newModelId }));
+            }
+          }}
+        />
+      )}
     </ModalShell>
   );
 }
