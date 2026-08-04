@@ -11,14 +11,12 @@ import { Drivers } from "./pages/Drivers";
 import { Timesheets } from "./pages/Timesheets";
 import { Trips } from "./pages/Trips";
 import { Dashboard } from "./pages/Dashboard";
+import { Customers } from "./pages/Customers";
+import { CustomerProfile } from "./pages/CustomerProfile";
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
   return currentUser ? children : <Navigate to="/login" />;
-}
-
-function Placeholder({ title }) {
-  return <h1 className="p-6 text-2xl font-bold text-gray-900">{title}</h1>;
 }
 
 function AppRoutes() {
@@ -39,7 +37,8 @@ function AppRoutes() {
         <Route path="vehicles" element={<Vehicles />} />
         <Route path="timesheets" element={<Timesheets />} />
         <Route path="fleet-management" element={<FleetManagement />} />
-        <Route path="customers" element={<Placeholder title="Customers" />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="customers/:customerId" element={<CustomerProfile />} />
         <Route path="trips" element={<Trips />} />
       </Route>
     </Routes>

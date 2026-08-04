@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ModalShell } from "./ModalShell";
 import { useDrivers } from "../hooks/useDrivers";
@@ -12,6 +12,8 @@ const initialForm = {
   driverId: "",
   customerName: "",
   customerId: "",
+  customerPhone: "",
+  customerEmail: "",
   serviceType: "",
   selectedTier: "",
   customDescription: "",
@@ -101,8 +103,6 @@ function buildBaseAmount(model, serviceType, selectedTier) {
 }
 
 export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
-  if (!isOpen) return null;
-
   const { drivers } = useDrivers();
   const { vehicles } = useVehicles();
   const { vehicleModels } = useVehicleModels();
@@ -222,14 +222,6 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
     form.extraHourQty,
   ]);
 
-  useEffect(() => {
-    if (form.rateManuallyAdjusted) return;
-    if (form.serviceType === "Custom / Other") return;
-    if (!form.serviceType) return;
-    setForm((prev) => ({ ...prev, amount: computedAmount || "" }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [computedAmount, form.serviceType]);
-
   const computedProfit = Number(form.amount || 0) - Number(form.expense || 0);
 
   const handleSubmit = async (e) => {
@@ -251,15 +243,14 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
     try {
       const customerName = form.customerName?.trim();
       let customerId = form.customerId || "";
-      let createdCustomerId = null;
 
       if (customerName) {
         if (!customerId) {
           const newCustomer = await addCustomer({
             fullName: customerName,
-            phone: "",
+            phone: form.customerPhone?.trim() || "",
+            email: form.customerEmail?.trim() || "",
           });
-          createdCustomerId = newCustomer.id;
           customerId = newCustomer.id;
         }
       }
@@ -333,6 +324,8 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
     tierOptions.length > 1;
   const showCustomFields = form.serviceType === "Custom / Other";
 
+  if (!isOpen) return null;
+
   return (
     <ModalShell
       title={tripToEdit ? "Edit Trip" : "Add Trip"}
@@ -401,6 +394,25 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
               </div>
             )}
           </div>
+          {!form.customerId && form.customerName && (
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                name="customerPhone"
+                value={form.customerPhone}
+                onChange={handleChange}
+                placeholder="Phone (optional)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+              <input
+                name="customerEmail"
+                type="email"
+                value={form.customerEmail}
+                onChange={handleChange}
+                placeholder="Email (optional)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+          )}
         </div>
 
         <div>
@@ -529,7 +541,9 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
             <input
               type="number"
               name="amount"
-              value={form.amount}
+              value={
+                form.rateManuallyAdjusted ? form.amount : computedAmount || ""
+              }
               onChange={handleAmountChange}
               min="0"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
