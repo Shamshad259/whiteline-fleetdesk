@@ -222,6 +222,12 @@ export function Timesheets() {
                       <span className="font-medium">Service:</span>{" "}
                       {entry.serviceRef || "—"}
                     </p>
+                    {entry.customerCode ? (
+                      <p>
+                        <span className="font-medium">Customer Code:</span>{" "}
+                        {entry.customerCode}
+                      </p>
+                    ) : null}
                     <p>
                       <span className="font-medium">Route:</span>{" "}
                       {renderRoute(entry)}
@@ -268,6 +274,9 @@ export function Timesheets() {
                     Service Ref
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Customer Code
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Route
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
@@ -301,6 +310,9 @@ export function Timesheets() {
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-700">
                         {entry.serviceRef || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-700">
+                        {formatNumber(entry.customerCode || "")}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-700">
                         {renderRoute(entry)}

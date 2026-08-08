@@ -65,6 +65,9 @@ export function Customers() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-2 text-left font-medium text-gray-600">
+                  Code
+                </th>
+                <th className="px-4 py-2 text-left font-medium text-gray-600">
                   Name
                 </th>
                 <th className="px-4 py-2 text-left font-medium text-gray-600">
@@ -91,6 +94,11 @@ export function Customers() {
                   onClick={() => navigate(`/customers/${c.id}`)}
                   className="cursor-pointer hover:bg-gray-50"
                 >
+                  <td className="px-4 py-2 text-gray-600">
+                    {c.code || (
+                      <span className="text-amber-600 text-xs">No code</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 font-medium text-gray-800">
                     {c.fullName}
                   </td>

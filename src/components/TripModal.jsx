@@ -388,7 +388,7 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
                     onClick={() => handleSelectCustomer(customer)}
                     className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
                   >
-                    {customer.fullName}
+                    {`${customer.fullName || "Unnamed customer"}${customer.code ? ` (${customer.code})` : ""}`}
                   </button>
                 ))}
               </div>
