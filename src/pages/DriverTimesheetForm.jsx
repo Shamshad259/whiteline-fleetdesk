@@ -27,6 +27,7 @@ export function DriverTimesheetForm() {
   const [form, setForm] = useState({
     shiftDate: new Date().toISOString().slice(0, 10),
     serviceRef: "",
+    customerName: "",
     customerCode: "",
     passengers: "",
     pickupLocation: "",
@@ -133,6 +134,7 @@ export function DriverTimesheetForm() {
           driverId: tokenDoc.driverId,
           shiftDate: form.shiftDate,
           serviceRef: form.serviceRef,
+          customerName: form.customerName?.trim() || "",
           customerCode: form.customerCode?.trim() || "",
           passengers: form.passengers ? Number(form.passengers) : null,
           pickupLocation: form.pickupLocation,
@@ -160,6 +162,7 @@ export function DriverTimesheetForm() {
       setForm({
         shiftDate: new Date().toISOString().slice(0, 10),
         serviceRef: "",
+        customerName: "",
         customerCode: "",
         passengers: "",
         pickupLocation: "",
@@ -238,6 +241,18 @@ export function DriverTimesheetForm() {
               value={form.serviceRef}
               onChange={handleChange}
               placeholder="e.g. Airport Transfer, Full Day"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Name (optional)
+            </label>
+            <input
+              name="customerName"
+              value={form.customerName}
+              onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>

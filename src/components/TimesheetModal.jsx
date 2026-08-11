@@ -19,6 +19,8 @@ export function TimesheetModal({
   const [form, setForm] = useState(() => ({
     shiftDate: entryToEdit?.shiftDate || new Date().toISOString().slice(0, 10),
     serviceRef: entryToEdit?.serviceRef || "",
+    customerName: entryToEdit?.customerName || "",
+    customerCode: entryToEdit?.customerCode || "",
     passengers: entryToEdit?.passengers ?? "",
     pickupLocation: entryToEdit?.pickupLocation || "",
     pickupTime: entryToEdit?.pickupTime || "",
@@ -69,6 +71,8 @@ export function TimesheetModal({
       const payload = {
         shiftDate: form.shiftDate,
         serviceRef: form.serviceRef,
+        customerName: form.customerName,
+        customerCode: form.customerCode,
         passengers: form.passengers !== "" ? Number(form.passengers) : null,
         pickupLocation: form.pickupLocation,
         pickupTime: form.pickupTime,
@@ -137,6 +141,32 @@ export function TimesheetModal({
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Name (optional)
+            </label>
+            <input
+              name="customerName"
+              value={form.customerName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Code (optional)
+            </label>
+            <input
+              name="customerCode"
+              value={form.customerCode}
+              onChange={handleChange}
+              placeholder="e.g. WLC-0004"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
         </div>
 
         <div>

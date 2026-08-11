@@ -45,8 +45,10 @@ export function Drivers() {
     return map;
   }, [vehicleModels]);
 
-  const classNameById = (id) =>
-    vehicleClasses.find((c) => c.id === id)?.name || "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps, no-undef
+  const classNameById = useCallback(
+    (id) => vehicleClasses.find((c) => c.id === id)?.name || "",
+  );
 
   const modelsForFilter = useMemo(() => {
     if (classFilter === "all") return vehicleModels;
@@ -77,19 +79,25 @@ export function Drivers() {
       .filter((d) => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
+        const vehicle = vehicleMap[d.vehicleId];
+        const model = modelById[vehicle?.modelId];
+        const className = classNameById(model?.classId);
         return (
           d.fullName?.toLowerCase().includes(q) ||
-          d.phone?.toLowerCase().includes(q)
+          d.phone?.toLowerCase().includes(q) ||
+          model?.name?.toLowerCase().includes(q) ||
+          className?.toLowerCase().includes(q)
         );
       });
   }, [
     drivers,
+    classFilter,
     vehicleMap,
     modelById,
-    classFilter,
     modelFilter,
     driverTypeFilter,
     searchQuery,
+    classNameById,
   ]);
 
   const handleAddClick = () => {

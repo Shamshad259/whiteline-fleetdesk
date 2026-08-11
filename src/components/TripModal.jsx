@@ -21,6 +21,7 @@ const initialForm = {
   rateManuallyAdjusted: false,
   expense: "",
   paymentStatus: "Paid",
+  amountPaid: "",
   tripDate: new Date().toISOString().slice(0, 10),
   notes: "",
   extraKmEnabled: false,
@@ -113,6 +114,7 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
     selectedTier: tripToEdit?.tierHours ?? "",
     tripDate: tripToEdit?.tripDate || new Date().toISOString().slice(0, 10),
     amount: tripToEdit?.amount ?? "",
+    amountPaid: tripToEdit?.amountPaid ?? "",
     expense: tripToEdit?.expense ?? "",
     extraKmEnabled: tripToEdit?.addOns?.extraKm?.enabled || false,
     extraKmQty: tripToEdit?.addOns?.extraKm?.qty ?? "",
@@ -287,6 +289,12 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
         },
         expense: Number(form.expense || 0),
         paymentStatus: form.paymentStatus,
+        amountPaid:
+          form.paymentStatus === "Paid"
+            ? Number(form.amount || computedAmount || 0)
+            : form.paymentStatus === "Unpaid"
+              ? 0
+              : Number(form.amountPaid || 0),
         profit:
           Number(form.amount || computedAmount || 0) -
           Number(form.expense || 0),
@@ -593,6 +601,17 @@ export function TripModal({ isOpen, onClose, tripToEdit, onSuccess }) {
               <option value="Partial">Partial</option>
               <option value="Unpaid">Unpaid</option>
             </select>
+            {form.paymentStatus === "Partial" && (
+              <input
+                type="number"
+                name="amountPaid"
+                value={form.amountPaid}
+                onChange={handleChange}
+                min="0"
+                placeholder="Amount paid so far"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mt-2"
+              />
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

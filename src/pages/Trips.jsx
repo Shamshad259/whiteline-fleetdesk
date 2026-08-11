@@ -15,6 +15,7 @@ import {
   hasTripChangedSinceInvoice,
 } from "../utils/invoiceService";
 import { generateInvoicePdf } from "../utils/invoicePdf";
+import { updateTripPayment } from "../utils/tripService";
 
 function formatCurrency(value) {
   const amount = Number(value || 0);
@@ -49,6 +50,10 @@ export function Trips() {
   const [deleting, setDeleting] = useState(false);
   const [invoiceDialog, setInvoiceDialog] = useState(null);
   const [invoicingTripId, setInvoicingTripId] = useState(null);
+  const [paymentDialog, setPaymentDialog] = useState(null);
+  const [paymentStatusDraft, setPaymentStatusDraft] = useState("Paid");
+  const [amountPaidDraft, setAmountPaidDraft] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
 
   const driverById = useMemo(() => {
     const map = {};
@@ -181,6 +186,39 @@ export function Trips() {
     setInvoiceDialog({ type: "regenerate", trip, mode: "regenerate" });
   };
 
+  const openPaymentDialog = (trip) => {
+    setPaymentDialog(trip);
+    setPaymentStatusDraft(trip.paymentStatus || "Unpaid");
+    setAmountPaidDraft(
+      trip.amountPaid !== undefined && trip.amountPaid !== null
+        ? String(trip.amountPaid)
+        : "",
+    );
+  };
+
+  const handleSavePayment = async () => {
+    if (!paymentDialog) return;
+    setSavingPayment(true);
+    try {
+      const amountPaid =
+        paymentStatusDraft === "Paid"
+          ? Number(paymentDialog.amount || 0)
+          : paymentStatusDraft === "Unpaid"
+            ? 0
+            : Number(amountPaidDraft || 0);
+      await updateTripPayment(paymentDialog.id, {
+        paymentStatus: paymentStatusDraft,
+        amountPaid,
+      });
+      toast.success("Payment updated");
+      setPaymentDialog(null);
+    } catch (err) {
+      toast.error(err.message || "Error updating payment");
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
   const PaymentBadge = ({ status }) => {
     const classes = {
       Paid: "bg-green-100 text-green-800",
@@ -275,7 +313,12 @@ export function Trips() {
                         {formatDate(trip.tripDate)}
                       </p>
                     </div>
-                    <PaymentBadge status={trip.paymentStatus} />
+                    <button
+                      onClick={() => openPaymentDialog(trip)}
+                      className="hover:opacity-75"
+                    >
+                      <PaymentBadge status={trip.paymentStatus} />
+                    </button>
                   </div>
                   <div className="space-y-2 text-sm text-gray-700">
                     <p>
@@ -299,6 +342,17 @@ export function Trips() {
                       <span className="font-medium">Profit:</span>{" "}
                       {formatCurrency(trip.profit)}
                     </p>
+                    {trip.paymentStatus !== "Paid" && (
+                      <p>
+                        <span className="font-medium">Balance Due:</span>{" "}
+                        <span className="text-amber-700 font-semibold">
+                          {formatCurrency(
+                            Number(trip.amount || 0) -
+                              Number(trip.amountPaid || 0),
+                          )}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 mt-4 flex-wrap">
                     <button
@@ -365,6 +419,9 @@ export function Trips() {
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">
                     Payment
                   </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Balance Due
+                  </th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">
                     Actions
                   </th>
@@ -398,7 +455,24 @@ export function Trips() {
                         {formatCurrency(trip.profit)}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-700">
-                        <PaymentBadge status={trip.paymentStatus} />
+                        <button
+                          onClick={() => openPaymentDialog(trip)}
+                          className="hover:opacity-75"
+                        >
+                          <PaymentBadge status={trip.paymentStatus} />
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {trip.paymentStatus !== "Paid" ? (
+                          <span className="text-amber-700 font-semibold">
+                            {formatCurrency(
+                              Number(trip.amount || 0) -
+                                Number(trip.amountPaid || 0),
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex justify-end gap-2 flex-wrap">
@@ -489,6 +563,65 @@ export function Trips() {
         }}
         onCancel={() => setInvoiceDialog(null)}
       />
+
+      {paymentDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              Update Payment
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={paymentStatusDraft}
+                  onChange={(e) => setPaymentStatusDraft(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="Paid">Paid</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Unpaid">Unpaid</option>
+                </select>
+              </div>
+              {paymentStatusDraft === "Partial" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount Paid
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={amountPaidDraft}
+                    onChange={(e) => setAmountPaidDraft(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Trip total: {formatCurrency(paymentDialog.amount)}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setPaymentDialog(null)}
+                disabled={savingPayment}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePayment}
+                disabled={savingPayment}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingPayment ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {invoiceDialog && invoiceDialog.type === "vat" && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">

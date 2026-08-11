@@ -112,9 +112,9 @@ export function Dashboard() {
       0,
     );
     const outstanding = filteredTrips.reduce((sum, trip) => {
-      return trip.paymentStatus === "Partial" || trip.paymentStatus === "Unpaid"
-        ? sum + Number(trip.amount || 0)
-        : sum;
+      if (trip.paymentStatus === "Paid") return sum;
+      const balance = Number(trip.amount || 0) - Number(trip.amountPaid || 0);
+      return sum + Math.max(0, balance);
     }, 0);
 
     return {
